@@ -3,7 +3,7 @@ include "Seqs.dfy"
 module PrivateDLL {
   import opened Seqs
 
-  export
+  /* export
     provides PrivateNode
     provides PrivateDoublyLinkedList
     provides PrivateDoublyLinkedList.Vals, PrivateDoublyLinkedList.Repr
@@ -19,7 +19,7 @@ module PrivateDLL {
     provides DllIterator.d
     provides DllIterator._ctor, DllIterator.Valid, DllIterator.GetIndex
     provides DllIterator.GetVal, DllIterator.MoveNext
-    provides InsertBeforeIter, RemoveIter
+    provides InsertBeforeIter, RemoveIter */
 
   class PrivateNode<T> {
     var L: PrivateNode?<T>
