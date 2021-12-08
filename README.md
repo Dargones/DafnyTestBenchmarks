@@ -1,4 +1,3 @@
-# Tests for Dafny QUIC library
+# Tests for Dafny libraries
 
-The following repository contains tests written manually for a [portion of the
-QUIC library](https://github.com/secure-foundations/everquic-dafny) dealing with Doubly-Linked lists.
+The following repository contains tests written manually for several Dafny libraries.
