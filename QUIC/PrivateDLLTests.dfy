@@ -20,8 +20,7 @@ module PrivateDLLTests {
     method GetEmptyList<T> ()
         returns (list:PrivateDoublyLinkedList<T>)
         ensures fresh(list) 
-        ensures list.Nodes == [] && list.Repr == {} && list.Vals == []
-        ensures list.head == null && list.tail == null
+        ensures list.Repr == {} && list.Valid()
     {
         list := GetFreshPrivateDoublyLinkedList<T>();
         list.Nodes := [];
@@ -33,10 +32,8 @@ module PrivateDLLTests {
 
     method GetListWithOneNode<T> (payload:T)
         returns (list:PrivateDoublyLinkedList<T>, node:PrivateNode<T>)
-        ensures fresh(list) && fresh(node) && list.Nodes == [node]
-        ensures list.Repr == {node} && list.Vals == [payload] 
-        ensures node.payload == payload && node.L == null && node.R == null
-        ensures list.head == node && list.tail == node
+        ensures fresh(list) && fresh(node)
+        ensures list.Repr == {node} && list.Valid()
     {
         node := GetFreshPrivateNode<T>();
         list := GetFreshPrivateDoublyLinkedList<T>();
@@ -56,11 +53,7 @@ module PrivateDLLTests {
                  node2:PrivateNode<T>)
         ensures fresh(list) && fresh(node1) && fresh(node2)
         ensures list.Repr == {node1, node2} && list.Nodes == [node1, node2]
-        ensures list.Vals == [payload1, payload2]
-        ensures node1.L == null && node1.R == node2
-        ensures node2.L == node1 && node2.R == null
-        ensures node1.payload == payload1 && node2.payload == payload2
-        ensures list.head == node1 && list.tail == node2
+        ensures list.Valid()
     {
         node1 := GetFreshPrivateNode<T>();
         node2 := GetFreshPrivateNode<T>();
@@ -86,14 +79,7 @@ module PrivateDLLTests {
         ensures fresh(list) && fresh(node1) && fresh(node2) && fresh(node3)
         ensures list.Repr == {node1, node2, node3}
         ensures list.Nodes == [node1, node2, node3]
-        ensures list.Vals == [payload1, payload2, payload3]
-        ensures node1.L == null && node1.R == node2
-        ensures node2.L == node1 && node2.R == node3
-        ensures node3.L == node2 && node3.R == null
-        ensures node1.payload == payload1 
-        ensures node2.payload == payload2
-        ensures node3.payload == payload3
-        ensures list.head == node1 && list.tail == node3
+        ensures list.Valid()
     {
         node1 := GetFreshPrivateNode<T>();
         node2 := GetFreshPrivateNode<T>();
