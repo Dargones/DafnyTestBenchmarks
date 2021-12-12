@@ -4,23 +4,27 @@ module PrivateDLLTests {
 
     import opened PrivateDLL
 
-    // The two methods below have to be implemented in the target language
+    // The three methods below have to be implemented in the target language
 
-    method {:extern} GetFreshPrivateDoublyLinkedList<T>() 
+    method {:extern} {:fresh} GetFreshPrivateDoublyLinkedList<T>() 
         returns (list:PrivateDoublyLinkedList<T>) 
         ensures fresh(list)
 
-    method {:extern} GetFreshPrivateNode<T>() 
+    method {:extern} {:fresh} GetFreshPrivateNode<T>() 
         returns (node:PrivateNode<T>) 
         ensures fresh(node)
+
+    method {:extern} {:fresh} GetFreshDllIterator<T>() 
+        returns (iter:DllIterator<T>) 
+        ensures fresh(iter)
 
     // The four helper methods below help to avoid repetition.
     // While these can be merged into one method, I split them for readability
 
     method GetEmptyList<T> ()
         returns (list:PrivateDoublyLinkedList<T>)
-        ensures fresh(list) 
-        ensures list.Repr == {} && list.Valid()
+        ensures fresh(list) && fresh(list.Repr)
+        ensures list.Nodes == [] && list.Valid()
     {
         list := GetFreshPrivateDoublyLinkedList<T>();
         list.Nodes := [];
@@ -32,8 +36,8 @@ module PrivateDLLTests {
 
     method GetListWithOneNode<T> (payload:T)
         returns (list:PrivateDoublyLinkedList<T>, node:PrivateNode<T>)
-        ensures fresh(list) && fresh(node)
-        ensures list.Repr == {node} && list.Valid()
+        ensures fresh(list) && fresh(node) && fresh(list.Repr)
+        ensures list.Nodes == [node] && list.Valid()
     {
         node := GetFreshPrivateNode<T>();
         list := GetFreshPrivateDoublyLinkedList<T>();
@@ -51,9 +55,8 @@ module PrivateDLLTests {
         returns (list:PrivateDoublyLinkedList<T>, 
                  node1:PrivateNode<T>,
                  node2:PrivateNode<T>)
-        ensures fresh(list) && fresh(node1) && fresh(node2)
-        ensures list.Repr == {node1, node2} && list.Nodes == [node1, node2]
-        ensures list.Valid()
+        ensures fresh(list) && fresh(node1) && fresh(node2) && fresh(list.Repr)
+        ensures list.Nodes == [node1, node2] && list.Valid()
     {
         node1 := GetFreshPrivateNode<T>();
         node2 := GetFreshPrivateNode<T>();
@@ -101,87 +104,214 @@ module PrivateDLLTests {
         list.tail := node3;
     }
 
+    // A method for сhecking list content at runtime
+
+    method ListIs<T(==)>(list:PrivateDoublyLinkedList<T>, elements:seq<T>) returns (b:bool) {
+        var curr:PrivateNode?<T> := list.head;
+        var currOld:PrivateNode?<T> := null;
+        for i := 0 to |elements| {
+            if curr == null || curr.payload != elements[i] {
+                return false;
+            }
+            currOld := curr;
+            curr := curr.R;
+            if ((curr != null) && (curr.L != currOld)) {
+                return false;
+            }
+        }
+        return curr == null;
+    }
+
     // Below are the tests proper
 
-    method TestIsEmptyTrue() {
-        var list := GetEmptyList<int>();    
-        var empty := list.IsEmpty();
-        // expect empty;
+    class PrivateDoublyLinkedListTests {
+
+        static method {:test} TestIsEmptyTrue() {
+            var list := GetEmptyList<int>();    
+            var empty := list.IsEmpty();
+            expect empty;
+        }
+
+        static method {:test} TestIsEmptyFalse() {
+            var list, _ := GetListWithOneNode<int>(5);
+            var empty := list.IsEmpty();
+            expect !empty;
+        }
+
+        static method {:test} TestRemoveOnly() {
+            var list, node := GetListWithOneNode<int>(5);
+            var _ := list.Remove(node);
+            var empty := ListIs(list, []);
+            expect empty;
+        }
+
+        static method {:test} TestRemoveFirst() {
+            var list, head, _ := GetListWithTwoNodes<int>(5, 6);
+            var _ := list.Remove(head);
+            var correct := ListIs(list, [6]);
+            expect correct;
+        }
+
+        static method {:test} TestRemoveLast() {
+            var list, _, tail := GetListWithTwoNodes<int>(5, 6);
+            var _ := list.Remove(tail);
+            var correct := ListIs(list, [5]);
+            expect correct;
+        }
+
+        static method {:test} TestRemoveMiddle() {
+            var list, _, node, _ := GetListWithThreeNodes<int>(5, 6, 7);
+            var _ := list.Remove(node);
+            var correct := ListIs(list, [5, 7]);
+            expect correct;
+        }
+
+        static method {:test} TestRemoveHead() {
+            var list, _, _ := GetListWithTwoNodes<int>(5, 6);
+            var head := list.RemoveHead();
+            expect head == 5;
+            var correct := ListIs(list, [6]);
+            expect correct;
+        }
+
+        static method {:test} TestRemoveTail() {
+            var list, _, _ := GetListWithTwoNodes<int>(5, 6);
+            var tail := list.RemoveTail();
+            expect tail == 6;
+            var correct := ListIs(list, [5]);
+            expect correct;
+        }
+
+        static method {:test} TestInsertHeadEmpty() {
+            var list := GetEmptyList<int>();    
+            list.InsertHead(5);
+            var correct := ListIs(list, [5]);
+            expect correct;
+        }
+
+        static method {:test} TestInsertHeadNonEmpty() {
+            var list, _ := GetListWithOneNode<int>(6);
+            list.InsertHead(5); 
+            var correct := ListIs(list, [5, 6]);
+            expect correct;
+        }
+
+        static method {:test} TestInsertTailEmpty() {
+            var list := GetEmptyList<int>();    
+            list.InsertTail(5);
+            var correct := ListIs(list, [5]);
+            expect correct;
+        }
+
+        static method {:test} TestInsertTailNonEmpty() {
+            var list, _ := GetListWithOneNode<int>(6);
+            list.InsertTail(5); 
+            var correct := ListIs(list, [6, 5]);
+            expect correct;
+        }
+
+        static method {:test} TestPeekHead() {
+            var list, _, _ := GetListWithTwoNodes<int>(3, 4);    
+            var head := list.PeekHead();
+            expect head == 3;
+        }
+
+        static method {:test} TestPeekTail() {
+            var list, _, _ := GetListWithTwoNodes<int>(3, 4);    
+            var tail := list.PeekTail();
+            expect tail == 4;
+        }
+
+        static method {:test} TestClear() {
+            var list, _, _ := GetListWithTwoNodes<int>(3, 4);    
+            list.Clear();
+            var empty := ListIs(list, []);
+            expect empty;
+        }
+
     }
 
-    method TestIsEmptyFalse() {
-        var list, _ := GetListWithOneNode<int>(5);
-        var empty := list.IsEmpty();
-        // expect !empty;
-    }
+    class DllIteratorTests {
 
-    method TestRemoveOnly() {
-        var list, node := GetListWithOneNode<int>(5);
-        var _ := list.Remove(node);
-    }
+        static method {:test} TestGetVal() {
+            var list, _, _ :=  GetListWithTwoNodes<int>(1, 2);
+            var iter :=  GetFreshDllIterator();
+            iter.d := list;
+            iter.ptr := list.tail;
+            iter.index := 1;
+            var payload := iter.GetVal();
+            expect payload == 2;
+        }
 
-    method TestRemoveFirst() {
-        var list, head, _ := GetListWithTwoNodes<int>(5, 6);
-        var _ := list.Remove(head);
-    }
+        static method {:test} TestMoveNextValid() {
+            var list, _, tail :=  GetListWithTwoNodes<int>(1, 2);
+            var iter :=  GetFreshDllIterator();
+            iter.d := list;
+            iter.ptr := list.head;
+            iter.index := 0;
+            var valid := iter.MoveNext();
+            expect valid;
+            expect iter.ptr == list.tail;
+        }
 
-    method TestRemoveLast() {
-        var list, _, tail := GetListWithTwoNodes<int>(5, 6);
-        var _ := list.Remove(tail);
-    }
+        static method {:test} TestMoveNextNotValid() {
+            var list, _, tail :=  GetListWithTwoNodes<int>(1, 2);
+            var iter :=  GetFreshDllIterator();
+            iter.d := list;
+            iter.ptr := list.tail;
+            iter.index := 1;
+            var valid := iter.MoveNext();
+            expect !valid;
+            expect iter.ptr == null;
+        }
 
-    method TestRemoveMiddle() {
-        var list, _, node, _ := GetListWithThreeNodes<int>(5, 6, 7);
-        var _ := list.Remove(node);
-    }
+        static method {:test} TestInsertBeforeIterHead() {
+            var list, _ :=  GetListWithOneNode<int>(2);
+            var iter :=  GetFreshDllIterator();
+            iter.d := list;
+            iter.ptr := list.head;
+            iter.index := 0;
+            InsertBeforeIter(list, iter, 1);
+            var correct := ListIs(list, [1, 2]);
+            expect correct;
+            // expect iter.ptr == list.head would be appropriate and would fail
+        }
 
-    method TestRemoveHead() {
-        var list, _, _ := GetListWithTwoNodes<int>(5, 6);
-        var head := list.RemoveHead();
-        // expect head == 5;
-    }
+        static method {:test} TestInsertBeforeIterInside() {
+            var list, _, _ :=  GetListWithTwoNodes<int>(1, 3);
+            var iter :=  GetFreshDllIterator();
+            iter.d := list;
+            iter.ptr := list.tail;
+            iter.index := 1;
+            InsertBeforeIter(list, iter, 2);
+            var correct := ListIs(list, [1, 2, 3]);
+            expect correct;
+        }
 
-    method TestRemoveTail() {
-        var list, _, _ := GetListWithTwoNodes<int>(5, 6);
-        var tail := list.RemoveTail();
-        // expect tail == 6;
-    }
+        static method {:test} TestRemoveIterGood() {
+            var list, _, _ :=  GetListWithTwoNodes<int>(1, 3);
+            var iter :=  GetFreshDllIterator();
+            iter.d := list;
+            iter.ptr := list.head;
+            iter.index := 0;
+            var good := RemoveIter(list, iter);
+            var correct := ListIs(list, [3]);
+            expect good;
+            expect correct;
+        }
 
-    method TestInsertHeadEmpty() {
-        var list := GetEmptyList<int>();    
-        list.InsertHead(5);
-    }
+        static method {:test} TestRemoveIterNotGood() {
+            var list, _, _ :=  GetListWithTwoNodes<int>(1, 3);
+            var iter :=  GetFreshDllIterator();
+            iter.d := list;
+            iter.ptr := list.tail;
+            iter.index := 1;
+            var good := RemoveIter(list, iter);
+            var correct := ListIs(list, [1]);
+            expect !good;
+            expect correct;
+        }
 
-    method TestInsertHeadNonEmpty() {
-        var list, _ := GetListWithOneNode<int>(6);
-        list.InsertHead(5); 
-    }
-
-    method TestInsertTailEmpty() {
-        var list := GetEmptyList<int>();    
-        list.InsertTail(5);
-    }
-
-    method TestInsertTailNonEmpty() {
-        var list, _ := GetListWithOneNode<int>(6);
-        list.InsertTail(5); 
-    }
-
-    method TestPeekHead() {
-        var list, _, _ := GetListWithTwoNodes<int>(3, 4);    
-        var head := list.PeekHead();
-        // expect head == 3;
-    }
-
-    method TestPeekTail() {
-        var list, _, _ := GetListWithTwoNodes<int>(3, 4);    
-        var tail := list.PeekTail();
-        // expect tail == 4;
-    }
-
-    method TestClear() {
-        var list, _, _ := GetListWithTwoNodes<int>(3, 4);    
-        list.Clear();
     }
 
 
